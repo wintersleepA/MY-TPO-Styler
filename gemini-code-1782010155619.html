@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My AI Stylist (OOTD)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* 가독성과 미려한 UI를 위한 백그라운드 그라데이션 및 폰트 세팅 */
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-indigo-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold font-sans">✨ My AI Stylist</h1>
+            <p class="text-indigo-100 text-sm mt-1">날씨와 TPO 기반 AI 아웃핏 스타일링 추천 서비스</p>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Gemini API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="AI Studio에서 발급받은 API 키를 입력하세요 (비워두면 시뮬레이션 작동)" 
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 bg-gray-50 border focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                <p class="text-xs text-gray-400 mt-1">⚠️ GitHub Pages에 코드를 올릴 때는 보안을 위해 API Key 입력란을 공란으로 비워두고 호스팅하는 것을 권장합니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">도시 이름 (영문)</label>
+                    <input type="text" id="cityInput" value="Seoul" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 bg-gray-50 border text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">스타일 프레임 (성별)</label>
+                    <select id="genderSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 bg-gray-50 border text-sm">
+                        <option value="female">여성 (Female)</option>
+                        <option value="male">남성 (Male)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">상황 (TPO)</label>
+                    <select id="tpoSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 bg-gray-50 border text-sm">
+                        <option value="daily">일상 (Daily)</option>
+                        <option value="work">비즈니스/출근 (Work)</option>
+                        <option value="interview">면접 (Interview)</option>
+                        <option value="sports">스포츠/아웃도어 (Sports)</option>
+                        <option value="party">파티 (Party)</option>
+                        <option value="wedding">하객/결혼식 (Wedding)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">패션 무드</label>
+                    <select id="moodSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 bg-gray-50 border text-sm">
+                        <option value="minimalist">미니멀리스트 (Minimalist)</option>
+                        <option value="streetwear">스트릿웨어 (Streetwear)</option>
+                        <option value="gorpcore">고프코어 (Gorpcore)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">스타일링 콘셉트 테마</label>
+                    <select id="themeSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 bg-gray-50 border text-sm">
+                        <option value="standard">기본 스타일 (Standard)</option>
+                        <option value="princess">로열 프린세스 판타지 (Princess)</option>
+                        <option value="luxury">사이버네틱 퍼플 네온 (Cyberpunk)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="generateOOTD()" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium p-3 rounded-lg shadow transition duration-200 mt-2 cursor-pointer">
+                날씨 분석 및 OOTD 스타일링 생성하기
+            </button>
+        </div>
+
+        <div id="loadingState" class="hidden p-8 text-center space-y-2">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="text-sm text-gray-500">대기 환경 데이터를 분석하고 최적의 스타일 어셈블리를 연산 중입니다...</p>
+        </div>
+
+        <div id="resultState" class="hidden border-t border-gray-100 p-6 space-y-6 bg-gray-50">
+            <div class="text-center">
+                <span class="inline-block bg-indigo-100 text-indigo-800 text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide" id="resLocation">Seoul</span>
+                <h2 class="text-xl font-bold text-gray-900 mt-2" id="resSummary">스타일 요약 내용</h2>
+                <p class="text-sm text-gray-500 mt-1" id="resWeatherInfo">기온 0°C | 날씨 상태</p>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">추천 컬러 팔레트: <span id="paletteName" class="text-gray-700 font-medium"></span></h3>
+                <div id="paletteColors" class="flex h-10 w-full rounded-lg overflow-hidden">
+                    </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5 border-gray-100">의상 셋업 (Gears)</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li>👕 <span class="font-medium text-gray-400">상의:</span> <span id="outfitTop" class="text-gray-800 font-medium"></span></li>
+                        <li>👖 <span class="font-medium text-gray-400">하의:</span> <span id="outfitBottom" class="text-gray-800 font-medium"></span></li>
+                        <li id="outerContainer">🧥 <span class="font-medium text-gray-400">아우터:</span> <span id="outfitOuter" class="text-gray-800 font-medium"></span></li>
+                        <li>👟 <span class="font-medium text-gray-400">신발:</span> <span id="outfitShoes" class="text-gray-800 font-medium"></span></li>
+                    </ul>
+                </div>
+
+                <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5 border-gray-100">액세서리 디테일</h3>
+                    <ul id="outfitAccessories" class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                        </ul>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl space-y-2">
+                <h3 class="text-sm font-bold text-indigo-900">💡 코디네이션 큐레이션 노트</h3>
+                <p class="text-sm text-indigo-950 leading-relaxed" id="resRationale"></p>
+                <div class="text-xs text-indigo-700 pt-1 border-t border-indigo-100/60 mt-2">
+                    <strong>날씨 대응 가이드:</strong> <span id="resWeatherAdvice"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 하드코딩 형태로 키를 넣고 싶으시면 아래 따옴표 사이에 적어두세요.
+        // 하지만 안전한 배포를 위해 사용자가 UI 상에서 직접 입력하도록 설계해 두었습니다.
+        const DIRECT_GEMINI_API_KEY = ""; 
+
+        // 2. 날씨 매핑 로직 (WMO Weather Code)
+        function mapWmoCode(code) {
+            if (code === 0) return { condition: "Sunny", description: "맑고 쾌청한 하늘", icon: "Sun" };
+            if ([1, 2, 3].includes(code)) return { condition: "Cloudy", description: "구름이 조금 낀 부드러운 대기", icon: "CloudSun" };
+            if ([45, 48].includes(code)) return { condition: "Foggy", description: "낮은 안개와 서리 지대", icon: "CloudFog" };
+            if (code >= 51 && code <= 55) return { condition: "Rainy", description: "가벼운 보슬비 소식", icon: "CloudDrizzle" };
+            if (code >= 61 && code <= 65) return { condition: "Rainy", description: "촉촉한 빗줄기 강수 상황", icon: "CloudRain" };
+            if (code >= 71 && code <= 77) return { condition: "Snowy", description: "은은한 눈발 형성", icon: "Snowflake" };
+            if (code >= 80 && code <= 82) return { condition: "Rainy", description: "소나기성 강수 구역 통과", icon: "CloudRainWind" };
+            if ([85, 86].includes(code)) return { condition: "Snowy", description: "지나가는 기습 함박눈 예보", icon: "Snowflake" };
+            if (code >= 95) return { condition: "Stormy", description: "낙뢰 경보 및 강한 뇌우", icon: "CloudLightning" };
+            return { condition: "Cloudy", description: "온화한 흐림 상태", icon: "Cloud" };
+        }
+
+        // 3. 백엔드 `server.ts`에 존재하던 고해상도 백업 룰셋 모터 (시뮬레이션 엔진)
+        function generateHighFidelityMockOOTD(temp, condition, tpo, mood, gender, theme) {
+            // 기본값 셋업
+            let top = "순면 크루넥 유기농 반팔 티셔츠";
+            let bottom = "레귤러 실루엣 코튼 치노 트라우저";
+            let outer = "내추럴 감성 소프트 코튼 셔츠 아우터";
+            let shoes = "프리미엄 클래식 슬림 캔버스 솔 스니커즈";
+            let accessories = ["미니멀 이탈리안 천연 핸드메이드 레더 아날로그 워치", "실버 925 레이어드 가락지 링"];
+            let paletteName = "어반 미니멀리스트 샌드 & 에코 모스";
+            let hexCodes = ["#2C3E50", "#7F8C8D", "#BDC3C7", "#E0D7C6"];
+            let suitableSummary = "🧥 스마트 하이엔드 데일리 코디 가이드";
+            let advice = "시시각각 변동하는 기온 변화에 완벽 대응하기 위해 필요 시 가벼운 소장용 아우터를 소지하시기 바랍니다.";
+            let rationale = `현재 환경 분석 결과(${temp}°C)와 TPO 요건인 ${tpo} 목적에 균형을 이룬 미니멀리스트 감성의 수트 어셈블리 레이아웃입니다. 자연스러운 뉴트럴 계조를 전극에 매치하여 감각적인 정체성을 확보했습니다.`;
+
+            const isCold = temp < 12;
+            const isWarm = temp > 22;
+
+            if (isCold) {
+                advice = "기온이 낮습니다! 바람막이 기능성이 탁월한 프리미엄 패브릭 레이어를 최우선으로 확보하세요.";
+                hexCodes = ["#1A252C", "#2C3E50", "#7F8C8D", "#D5D8DC"];
+                shoes = "생활 방수 천연 가죽 클래식 첼시 헤비 부츠";
+                accessories = ["메리노 울 리브 골지 니트 비니 모자", "전자기 스크린 터치 하이드로가죽 클래식 방한 장갑"];
+                if (gender === "female") {
+                    top = "최고급 캐시미어 하이넥 니트 스웨터"; bottom = "고중량 헤비 본딩 헤링본 울 플레어 트라우저"; outer = "헤비오버핏 유러피안 하이포텐스 구스다운 패딩";
+                } else {
+                    top = "도톰한 헤비 벌키 벌룬 슬리브 케이블 니트"; bottom = "스티치가 돋보이는 오리지널 셀비지 인디고 데님 팬츠"; outer = "고밀도 울 더블 브레스티드 클래식 롱코트";
+                }
+            } else if (isWarm) {
+                advice = "따뜻한 대기 환경입니다. 쾌적성을 극대화한 천연 린넨이나 메쉬 원단을 활용해 호흡을 살리세요.";
+                hexCodes = ["#F5F5DC", "#E6C280", "#C8B195", "#3D3D3D"];
+                outer = ""; shoes = "고급 스웨이드 가죽 로퍼";
+                accessories = ["눈을 완벽 보호하는 편광 자외선 차단 스포츠 선글라스", "심플한 무광 실버 브라스 원형 팔찌"];
+                if (gender === "female") {
+                    top = "시원한 천연 린넨 슬리브리스 민소매 나시"; bottom = "시원하고 흐르는 듯한 플리츠 하이웨이스트 와이드 실크 실루엣";
+                } else {
+                    top = "워싱된 천연 린넨 캠프카라 하프 셔츠"; bottom = "가볍고 시원한 텐셀 혼방 반바지 쇼츠";
+                }
+            } else {
+                if (gender === "female") {
+                    top = "쫀쫀한 코튼 리브 골지 긴팔 니트 탑"; bottom = "하이웨이스트 세미 스트레이트 슬림핏 데님 팬츠"; outer = "브리티시 서정 Gabardine 클래식 벨티드 트렌치 코트"; shoes = "세련된 스퀘어 토 프리미엄 가죽 로퍼 슬립온";
+                } else {
+                    top = "부드러운 피마 코튼 프리미엄 카라 포로 셔츠"; bottom = "슬림핏 정밀 가바딘 코튼 테이퍼드 치노 팬츠"; outer = "내추럴 숄더 디컨스트럭티드 이탈리안 울 블레이저"; shoes = "군더더기 없는 올화이트 레트로 테니스 가죽 스니커즈";
+                }
+            }
+
+            // TPO에 따른 보정
+            if (["work", "interview"].includes(tpo)) {
+                suitableSummary = `💼 전문적인 스마트 ${tpo.toUpperCase()} 룩`;
+                outer = outer || "완벽한 비율의 최고급 클래식 아우터 테일러드 블레이저";
+                if (gender === "female") {
+                    top = "천연 실크 스마트 카라 블라우스"; bottom = "단색 원단 플리츠 테이퍼드 드레스 슬랙스"; shoes = "세련된 스퀘어 토 프리미엄 가죽 로퍼 슬립온";
+                } else {
+                    top = "옥스포드 프리미엄 코튼 버튼다운 클래식 셔츠"; bottom = "칼주름 클래식 테일러드 드레스 트라우저"; shoes = "고급 본드 실밥 처리 옥스포드 프리미엄 레더 더비 슈즈";
+                }
+                accessories.push("사피아노 천연 소가죽 클래식 서류 백 홀더");
+            } else if (tpo === "sports") {
+                suitableSummary = "🏃 테크니컬 애슬레틱 스포츠 포메이션";
+                outer = isCold ? "고어텍스 고방수 방풍 전술 쉘 바람막이 자켓" : "초경량 기능성 포켓 나일론 런닝 조끼 베스트";
+                top = "고기능성 흡습속건 심리스 퍼포먼스 티셔츠"; bottom = "스판 테리 보온 플리스 조거 전술 서포트 타이츠";
+                shoes = "비브람 솔 고사양 테크웨어 오프로드 전술 트레일 러닝 스니커즈";
+                accessories = ["하드웨어 바이탈 체크 다목적 오프로드 전술 GPS 스마트 워치", "이마 땀 흡수 속건 고신축 러닝 매쉬 캡 모자"];
+                hexCodes = ["#000000", "#111111", "#00FF66", "#777777"];
+            } else if (["wedding", "party"].includes(tpo)) {
+                suitableSummary = "🍾 소피스티케이트 이브닝 파티 실루엣";
+                hexCodes = ["#000000", "#1A1A1A", "#D4AF37", "#FFFFFF"];
+                shoes = "하이 쉘 광택 최고급 메탈 드레스 파티 슈즈";
+                accessories.push("앤티크 골드 문양의 볼드한 파티 원석 반지", "빛 반사가 영롱한 오스트리아 에메랄드 원석 셔츠 커프링크스");
+                if (gender === "female") {
+                    top = "고혹적인 백리스 샤틴 오프숄더 크롭 코르셋"; bottom = "우아하고 실키한 크레이프 실루엣 맥시 무대 스커트"; outer = "볼륨 실루엣 벨벳 포멀 파티 블레이저";
+                } else {
+                    top = "체형 보정 기기 직조 테일러드 무늬 드레스 셔츠"; bottom = "빛을 반사하는 고급 벨벳 파티 트라우저 팬츠"; outer = "빛나는 프리미엄 이브닝 카라 턱시도 자켓 단추";
+                }
+            }
+
+            // 특수 커스텀 무드 필터링
+            if (mood === "streetwear") {
+                top = "고중량 헤비웨이트 피그먼트 워싱 그래픽 후디"; bottom = "와이드 스트릿 나일론 벌룬 파라슈트 조거 전술 팬츠"; outer = "스트릿 스포티 배색 레트로 나일론 바시티 아우터"; shoes = "한정판 하이탑 청키 레이스 스트릿 크루 스니커즈"; accessories.push("묵직하고 볼드한 메탈 실버 925 볼 쇠고슬 체인 목걸이"); hexCodes = ["#050505", "#5A32A8", "#124B8C", "#E91E63"];
+            } else if (mood === "gorpcore") {
+                outer = "테크니컬 전술 고방수 하이퍼 고어텍스 아웃도어 하드쉘"; top = "메리노 울 보온 심리스 써멀 베이스 레이어"; bottom = "고기능성 테프론 방수 방풍 립스탑 트레일 워크 팬츠"; shoes = "아웃도어 비브람 하이 헤비 프로 등산 워크 테크 하이크 부츠"; accessories.push("전술 다목적 알루미늄 카라비너 키홀더 스트랩", "가볍고 내구성이 우수한 방수 나일론 스트릿 크로스백"); hexCodes = ["#2B3E25", "#473C35", "#8A9A86", "#141414"];
+            }
+
+            // 테마 오버라이드
+            if (theme === "princess") {
+                paletteName = "로열 프린세스 벚꽃 핑크 아우라";
+                hexCodes = ["#FFF5F6", "#FBCFE8", "#F472B6", "#EC4899", "#831843"];
+                suitableSummary = `👸 로열 프린세스 ${tpo.toUpperCase()} 품격 스타일`;
+                advice = `대기 환경이 민감하게 변하고 있습니다. ${temp}°C 기온에 피팅 감각을 보수하기 위해 우아한 모션 레이어를 덧대어 실크 감성을 지켜주세요.`;
+                rationale = `이번 ${tpo} 이벤트를 위해 정성스레 조율한 공주풍 실루엣 가이드입니다. 현재 대기 기온인 ${temp}°C를 면밀히 감안하여, ${outer ? '감미로운 트위드 기어를 레이어링하여 품격 있는 조화' : '선선하고 기품 서린 얇은 고감도 천사 레이어'}를 튜닝했습니다.`;
+                top = gender === "female" ? "우아한 실크 퍼프 소매 러플 블라우스" : "로열 파스텔 린넨 테일러드 베스트와 이너 티셔츠";
+                bottom = gender === "female" ? "풍성하게 퍼지는 티어드 소프트 튤 볼가운 롱 스커트" : "크림 아이보리 플리츠 프리미엄 실크 와이드 팬츠";
+                outer = isCold ? "골드 리본 버클 포인트를 준 로열 트위드 자켓" : "은은하게 비치는 시어 오간자 레이스 페미닌 가디건";
+                shoes = gender === "female" ? "스왈로브스키 크리스탈 글라스 보석 보정 힐" : "달콤한 파스텔 톤 수제 양가죽 메리제인 로퍼";
+                accessories = ["클래식 실버 크리스탈 보석 웨딩 머리띠 왕관 티아라", "사랑스러운 무드의 파스텔 핑크 실크 빅 리본 헤어핀 클립", "오스트리아 수제 진주 메탈 트윈 초커 레이어드 목걸이"];
+            } else if (theme === "luxury") {
+                paletteName = "바이올렛 일렉트릭 네온 일루미네이션";
+                hexCodes = ["#060210", "#d8b4fe", "#a855f7", "#ec4899", "#8b5cf6"];
+                suitableSummary = `⚡ 네온-그리드 ${tpo.toUpperCase()} 전술 의장`;
+                advice = `사이버 보라 웨더 경보 수신 완료. 기온 약 ${temp}°C. 통신기 디스플레이 왜곡 방지 및 대기 습도 극복을 위해 전술 탄소 방패 레이어를 확보하십시오.`;
+                rationale = `정체 전선 및 대기 데이터(${temp}°C)를 즉각 처리하여 조율된 보라색 테크웨어 셋업 기어입니다. 습도 저지선 및 체감 온도를 계산해 ${outer ? '최첨단 방풍 기어를 레이어링' : '기동성이 강화된 시스루 보라 방열 레이싱 실루엣'}을 결성했습니다.`;
+                top = "네온 바이올렛 미래형 컴프레션 스포츠 탑";
+                bottom = "카본 화이버로 강화된 고기능성 테크웨어 전술 카고 팬츠";
+                outer = isCold ? "무광택 미드나잇 블랙 네오크롬 전술 매트 롱 트렌치 코트" : "네온 바이올렛 홀로그래픽 스마트 테크웨어 바람막이 자켓";
+                shoes = "고접지 스마트 마그네틱 플랫 버클 전술 러너 스니커즈";
+                accessories = ["퍼플빛 HUD 증강현실 홀로그램 스마트 비저 왜곡 안경", "특수 기동형 원터치 퀵릴리즈 나일론 버클 전술 벨트", "퍼플 LED 브레들 시그널 특수 필터 하이테크 마스크"];
+            }
+
+            return { suitableSummary, rationale, weatherAdvice: advice, outfit: { top, bottom, outer, shoes, accessories }, colorPalette: { name: paletteName, hexCodes } };
+        }
+
+        // 4. 메인 실행 컨트롤러 함수
+        async function generateOOTD() {
+            const city = document.getElementById('cityInput').value || "Seoul";
+            const gender = document.getElementById('genderSelect').value;
+            const tpo = document.getElementById('tpoSelect').value;
+            const mood = document.getElementById('moodSelect').value;
+            const theme = document.getElementById('themeSelect').value;
+            const uiApiKey = document.getElementById('apiKeyInput').value;
+            
+            const apiKey = uiApiKey || DIRECT_GEMINI_API_KEY;
+
+            // UI 스테이트 전환
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('resultState').classList.add('hidden');
+
+            try {
+                // Step 4-1: Open-Meteo 지오코딩 및 기상 예측 통합 호출
+                const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+                const geoRes = await fetch(geoUrl);
+                let lat = 37.5665, lon = 126.9780, resolvedCity = "Seoul";
+
+                if (geoRes.ok) {
+                    const geoData = await geoRes.json();
+                    if (geoData.results && geoData.results.length > 0) {
+                        const match = geoData.results[0];
+                        lat = match.latitude;
+                        lon = match.longitude;
+                        resolvedCity = `${match.name}, ${match.country_code?.toUpperCase() || ""}`;
+                    }
+                }
+
+                const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`;
+                const forecastRes = await fetch(forecastUrl);
+                if (!forecastRes.ok) throw new Error("기상 정보를 가져올 수 없습니다.");
+                
+                const weatherData = await forecastRes.json();
+                const current = weatherData.current;
+                const wmoDetail = mapWmoCode(current.weather_code);
+
+                const weatherPayload = {
+                    temp: Math.round(current.temperature_2m),
+                    feelsLike: Math.round(current.apparent_temperature),
+                    humidity: current.relative_humidity_2m,
+                    windSpeed: Math.round(current.wind_speed_10m * 10) / 10,
+                    description: wmoDetail.description,
+                    condition: wmoDetail.condition
+                };
+
+                let finalResult = null;
+
+                // Step 4-2: API Key 여부에 따른 처리 분기
+                if (!apiKey) {
+                    console.log("Gemini API Key 미검출. 고성능 백업 엔진 시뮬레이션을 전개합니다.");
+                    finalResult = generateHighFidelityMockOOTD(weatherPayload.temp, weatherPayload.condition, tpo, mood, gender, theme);
+                } else {
+                    console.log("Gemini API Key 검출. 실시간 브라우저 Direct AI 스트리밍 엔진을 구동합니다.");
+                    
+                    // 정교하게 짜인 Prompt 설계 및 Payload 전송
+                    const prompt = `
+                        You are an expert, high-end VIP fashion stylist crafting the perfect Outfit of the Day (OOTD) recommendation.
+                        Analyze the physical environment conditions and styling inputs precisely:
+                        - Location Name: ${resolvedCity}
+                        - Current Weather: ${weatherPayload.temp}°C, "${weatherPayload.description}" (Classification: ${weatherPayload.condition})
+                        - Sensor: Wind speed ${weatherPayload.windSpeed} km/h, Relative Humidity ${weatherPayload.humidity}%, Apparent Feels-Like Temperature ${weatherPayload.feelsLike}°C.
+                        - Event / TPO: ${tpo}
+                        - Fashion Aesthetic Mood: ${mood}
+                        - Target Styling Frame / Gender: ${gender}
+                        - Styling Theme Mode: ${theme === 'princess' ? 'Princess Fantasy Royal Mode' : theme === 'luxury' ? 'Cyberpunk Neon Cyber-Purple Mode' : 'Standard'}
+
+                        CRITICAL LANGUAGE INSTRUCTION:
+                        - You MUST write ALL text fields (suitableSummary, rationale, weatherAdvice, top, bottom, outer, shoes, accessories array, colorPalette.name) in Korean (한국어).
+                        - Use high-end, elegant editorial fashion terminology natural to Korean experts.
+
+                        Theme Mode Instructions:
+                        - Princess Mode: Highly themed around princess, royale, elegant, cute, and pastel princess aesthetic (soft pinks, pastel gold, rose, tiaras, glass slippers, pearl chokers, silk bow ribbons).
+                        - Cyberpunk Mode: Futuristic techwear, tactical neon-purple aesthetic (materials like waterproof ripstop, graphene, carbon-fiber, matte black with highlights of deep glossy purple, cyberpunk neon violet, no cyan/light blue).
+
+                        Return precisely in JSON format adhering to this schema:
+                        {
+                          "suitableSummary": "코디를 관통하는 짧고 세련된 헤드라인 문구 (6단어 이내)",
+                          "rationale": "날씨 조건과 의상 선정 사유를 설명하는 에디토리얼 글방",
+                          "weatherAdvice": "습도, 바람, 기온 낙폭에 따른 패션 방어 제언",
+                          "outfit": {
+                            "top": "상의 아이템 상세 명칭",
+                            "bottom": "하의 아이템 상세 명칭",
+                            "outer": "아우터 아이템 명칭 (불필요하면 빈 문자열)",
+                            "shoes": "신발 명칭",
+                            "accessories": ["액세서리1", "액세서리2"]
+                          },
+                          "colorPalette": {
+                            "name": "팔레트 스타일 컨셉명",
+                            "hexCodes": ["#HEX1", "#HEX2", "#HEX3"]
+                          }
+                        }
+                    `;
+
+                    // 브라우저 직접 Gemini 2.5/1.5 API Endpoint 호출 처리 (CORS 프리)
+                    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    const geminiRes = await fetch(geminiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { responseMimeType: "application/json" }
+                        })
+                    });
+
+                    if (!geminiRes.ok) throw new Error("Gemini API 호출에 실격했습니다. 키 혹은 네트워크를 체크하세요.");
+                    const geminiData = await geminiRes.json();
+                    
+                    let rawJsonText = geminiData.candidates[0].content.parts[0].text.trim();
+                    if (rawJsonText.startsWith("```")) {
+                        rawJsonText = rawJsonText.replace(/^
+http://googleusercontent.com/immersive_entry_chip/0
+
+---
+
+### 💡 이 코드의 특징 및 사용법
+
+1. **빌드가 필요 없는 올인원 구조:** Node.js, Vite, Webpack 설정 없이 이 파일 하나만 있으면 바로 실행됩니다.
+2. **보안과 직결된 구조:** 변수 `DIRECT_GEMINI_API_KEY`에 API 키를 하드코딩해서 넣을 수도 있지만, GitHub Pages 같은 공개된 공간에 노출되면 위험합니다. 따라서 사용자가 웹 화면에서 직접 자기 키를 입력해 안전하게 사용할 수 있도록 상단 인풋 상자를 구성해 두었습니다.
+3. **API 키가 없어도 작동:** 혹시 테스트할 때 키를 입력하지 않으면 코드 내부의 시뮬레이터 엔진(`generateHighFidelityMockOOTD`)이 작동하여 날씨 데이터를 분석한 뒤 최적의 결과를 가상으로 연산해 줍니다. 
+4. **배포 순서:** 이 파일을 그대로 GitHub 저장소(Repository)를 새로 파서 올린 뒤, `Settings -> Pages`에서 `main` 브랜치를 활성화해 주면 즉시 전 세계에 무료 배포 링크가 완성됩니다!

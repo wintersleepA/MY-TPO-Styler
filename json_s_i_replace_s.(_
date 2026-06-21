@@ -1,0 +1,64 @@
+}
+                    finalResult = JSON.parse(rawJsonText);
+                }
+
+                // Step 4-3: UI 동적 렌더링 주입
+                document.getElementById('resLocation').innerText = resolvedCity;
+                document.getElementById('resSummary').innerText = finalResult.suitableSummary;
+                document.getElementById('resWeatherInfo').innerText = `체감 기온 ${weatherPayload.feelsLike}°C | 현재 상태: ${weatherPayload.description} (습도 ${weatherPayload.humidity}%)`;
+                
+                document.getElementById('outfitTop').innerText = finalResult.outfit.top;
+                document.getElementById('outfitBottom').innerText = finalResult.outfit.bottom;
+                
+                if (finalResult.outfit.outer) {
+                    document.getElementById('outerContainer').classList.remove('hidden');
+                    document.getElementById('outfitOuter').innerText = finalResult.outfit.outer;
+                } else {
+                    document.getElementById('outerContainer').classList.add('hidden');
+                }
+                
+                document.getElementById('outfitShoes').innerText = finalResult.outfit.shoes;
+
+                // 액세서리 핸들러
+                const accUl = document.getElementById('outfitAccessories');
+                accUl.innerHTML = "";
+                finalResult.outfit.accessories.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerText = item;
+                    accUl.appendChild(li);
+                });
+
+                // 컬러 팔레트 핸들러
+                document.getElementById('paletteName').innerText = finalResult.colorPalette.name;
+                const paletteDiv = document.getElementById('paletteColors');
+                paletteDiv.innerHTML = "";
+                finalResult.colorPalette.hexCodes.forEach(color => {
+                    const colorBar = document.createElement('div');
+                    colorBar.style.backgroundColor = color;
+                    colorBar.style.flex = "1";
+                    colorBar.title = color;
+                    paletteDiv.appendChild(colorBar);
+                });
+
+                document.getElementById('resRationale').innerText = finalResult.rationale;
+                document.getElementById('resWeatherAdvice').innerText = finalResult.weatherAdvice;
+
+                // 결과 노출
+                document.getElementById('resultState').classList.remove('hidden');
+
+            } catch (err) {
+                alert(`에러 발생: ${err.message}\n임시 보조 엔진으로 결과를 출력합니다.`);
+                // 완전 차단 에러 방지용 가상 하이파이 피드백 작동
+                const fallback = generateHighFidelityMockOOTD(15, "Cloudy", tpo, mood, gender, theme);
+                document.getElementById('resSummary').innerText = fallback.suitableSummary;
+                document.getElementById('resRationale').innerText = fallback.rationale;
+                document.getElementById('resWeatherAdvice').innerText = fallback.weatherAdvice;
+                document.getElementById('resultState').classList.remove('hidden');
+            } finally {
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('loadingState').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
